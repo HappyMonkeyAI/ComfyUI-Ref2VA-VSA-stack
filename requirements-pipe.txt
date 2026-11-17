@@ -1,0 +1,4 @@
+# Host / MCP sidecar (talks to ComfyUI HTTP API — no torch needed here)
+httpx>=0.27.0
+mcp>=1.0.0,<2
+huggingface_hub>=0.26.0

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ref2va-vsa": {
+      "command": "python",
+      "args": ["-m", "h3_mcp.server"],
+      "cwd": "C:\\Users\\steph\\Documents\\development\\ComfyUI-Ref2VA-VSA",
+      "env": {
+        "COMFYUI_URL": "http://127.0.0.1:8188",
+        "H3_INPUT_DIR": "C:\\Users\\steph\\Documents\\development\\ComfyUI-Ref2VA-VSA\\data\\input",
+        "H3_OUTPUT_DIR": "C:\\Users\\steph\\Documents\\development\\ComfyUI-Ref2VA-VSA\\data\\output",
+        "PYTHONPATH": "C:\\Users\\steph\\Documents\\development\\ComfyUI-Ref2VA-VSA"
+      }
+    }
+  }
+}

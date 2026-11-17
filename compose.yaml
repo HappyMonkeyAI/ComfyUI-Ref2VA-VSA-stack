@@ -1,0 +1,85 @@
+name: ref2va-vsa
+
+x-comfy-volumes: &comfy-volumes
+  - ./data/models:${COMFYUI_HOME:-/app/ComfyUI}/models
+  - ./data/input:${COMFYUI_HOME:-/app/ComfyUI}/input
+  - ./data/output:${COMFYUI_HOME:-/app/ComfyUI}/output
+  - ./data/user:${COMFYUI_HOME:-/app/ComfyUI}/user
+  - .:${COMFYUI_HOME:-/app/ComfyUI}/custom_nodes/ComfyUI-Ref2VA-VSA
+
+services:
+  comfyui:
+    image: ${COMFYUI_IMAGE:-ghcr.io/pixeloven/comfyui/complete:cuda-sm120-latest}
+    ports:
+      - "127.0.0.1:${COMFYUI_PORT:-8188}:8188"
+    environment:
+      CLI_ARGS: ${CLI_ARGS:---listen 0.0.0.0 --port 8188 --disable-pinned-memory}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
+    volumes: *comfy-volumes
+    gpus: all
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8188/system_stats', timeout=5)\"",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+
+  mcp:
+    build:
+      context: .
+      dockerfile: h3_mcp/Dockerfile
+    environment:
+      COMFYUI_URL: ${COMFYUI_URL_DOCKER:-http://comfyui:8188}
+      H3_WIDTH: ${H3_WIDTH:-1344}
+      H3_HEIGHT: ${H3_HEIGHT:-768}
+      H3_LENGTH: ${H3_LENGTH:-124}
+      H3_SPARSITY: ${H3_SPARSITY:-0.75}
+      H3_TIMEOUT_SEC: ${H3_TIMEOUT_SEC:-900}
+      H3_WORKFLOW: /app/workflows/ref2va_vsa_4step_api.json
+      H3_INPUT_DIR: /data/input
+      H3_OUTPUT_DIR: /data/output
+    volumes:
+      - ./data/input:/data/input
+      - ./data/output:/data/output
+      - ./workflows:/app/workflows:ro
+    depends_on:
+      comfyui:
+        condition: service_healthy
+    # stdio MCP: `docker compose run --rm -T mcp`
+    # Cursor: host-side `python -m h3_mcp.server` with COMFYUI_URL=http://127.0.0.1:8188
+    profiles: ["mcp"]
+    stdin_open: true
+    tty: false
+    restart: "no"
+
+  model-pull:
+    build:
+      context: .
+      dockerfile: h3_mcp/Dockerfile
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      H3_MODELS_DIR: /data/models
+    volumes:
+      - ./data/models:/data/models
+    profiles: ["tools"]
+    entrypoint: ["python", "/app/scripts/download_models.py"]
+    restart: "no"
+
+  health:
+    build:
+      context: .
+      dockerfile: h3_mcp/Dockerfile
+    environment:
+      COMFYUI_URL: ${COMFYUI_URL_DOCKER:-http://comfyui:8188}
+    depends_on:
+      comfyui:
+        condition: service_healthy
+    profiles: ["tools"]
+    entrypoint: ["python", "/app/scripts/healthcheck.py"]
+    restart: "no"
